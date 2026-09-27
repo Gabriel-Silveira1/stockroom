@@ -8,6 +8,7 @@ dependencies = [
     "uvicorn[standard]>=0.30",
     "psycopg[binary,pool]>=3.2",
     "pydantic-settings>=2.4",
+    "aio-pika>=9.4",
 ]
 
 [dependency-groups]
@@ -35,6 +36,9 @@ target-version = "py313"
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "B", "UP", "SIM", "RUF", "ASYNC", "PT", "C4", "RET", "PL"]
 ignore = ["PLR2004"]
+
+[tool.ruff.lint.pylint]
+max-args = 7
 
 [tool.mypy]
 strict = true

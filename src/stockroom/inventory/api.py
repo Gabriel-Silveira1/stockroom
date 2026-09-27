@@ -8,7 +8,7 @@ from fastapi import Depends, FastAPI, Request, Response, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from stockroom.inventory import service
+from stockroom.inventory import handlers, service
 from stockroom.inventory.domain import (
     IdempotencyConflictError,
     InsufficientStockError,
@@ -20,8 +20,8 @@ from stockroom.inventory.domain import (
     UnknownStockItemsError,
 )
 from stockroom.inventory.settings import InventorySettings
-from stockroom.shared.db import Pool, create_pool
-from stockroom.shared.migrations import apply_migrations
+from stockroom.shared.db import Pool
+from stockroom.shared.runtime import run_service
 
 
 class Line(BaseModel):
@@ -87,15 +87,14 @@ def create_app(settings: InventorySettings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        pool = create_pool(settings.database_url, max_size=settings.db_pool_max_size)
-        await pool.open(wait=True)
-        async with pool.connection() as conn:
-            await apply_migrations(
-                conn, service="inventory", package="stockroom.inventory.migrations"
-            )
-        app.state.pool = pool
-        yield
-        await pool.close()
+        async with run_service(
+            settings,
+            schema=handlers.SCHEMA,
+            routing_keys=handlers.ROUTING_KEYS,
+            handlers=handlers.build_handlers(ttl_seconds=settings.reservation_ttl_seconds),
+        ) as pool:
+            app.state.pool = pool
+            yield
 
     app = FastAPI(title="Stockroom inventory", lifespan=lifespan)
     app.state.settings = settings
