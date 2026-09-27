@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+      - run: uv run ruff check
+      - run: uv run ruff format --check
+      - run: uv run mypy
+
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: stockroom
+          POSTGRES_PASSWORD: stockroom
+          POSTGRES_DB: stockroom_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U stockroom"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      STOCKROOM_TEST_DATABASE_URL: postgresql://stockroom:stockroom@localhost:5432/stockroom_test
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+      - run: uv run pytest -v
