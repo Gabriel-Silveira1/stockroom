@@ -63,6 +63,37 @@ services:
     ports:
       - "8102:8000"
 
+  fulfillment:
+    <<: *service
+    command: ["uvicorn", "--factory", "stockroom.fulfillment.api:create_app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      <<: *service-env
+      STOCKROOM_CARRIER_URL: http://carrier:8000
+      STOCKROOM_DISPATCH_BASE_DELAY_SECONDS: "0.5"
+      STOCKROOM_DISPATCH_MAX_DELAY_SECONDS: "5"
+    ports:
+      - "8103:8000"
+    depends_on:
+      <<: *service-deps
+      carrier:
+        condition: service_healthy
+
+  # A stand-in shipping carrier that fails on purpose. Change its behaviour live with
+  # PUT localhost:8104/admin/behaviour {"failure_rate": 1, "latency_ms": 50}.
+  carrier:
+    build: .
+    restart: unless-stopped
+    command: ["uvicorn", "--factory", "stockroom.carrier.api:create_app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      STOCKROOM_CARRIER_FAILURE_RATE: "0.3"
+    ports:
+      - "8104:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   inventory-seed:
     build: .
     command: ["python", "-m", "stockroom.inventory.seed"]
