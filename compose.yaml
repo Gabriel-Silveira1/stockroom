@@ -1,6 +1,24 @@
+x-service: &service
+  build: .
+  restart: unless-stopped
+  environment: &service-env
+    STOCKROOM_DATABASE_URL: postgresql://stockroom:stockroom@postgres:5432/stockroom
+    STOCKROOM_RABBITMQ_URL: amqp://stockroom:stockroom@rabbitmq:5672/
+  depends_on: &service-deps
+    postgres:
+      condition: service_healthy
+    rabbitmq:
+      condition: service_healthy
+  healthcheck:
+    test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+    interval: 5s
+    timeout: 3s
+    retries: 10
+
 services:
   postgres:
     image: postgres:17-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: stockroom
       POSTGRES_PASSWORD: stockroom
@@ -16,27 +34,39 @@ services:
       timeout: 3s
       retries: 20
 
-  inventory:
-    build: .
-    command: ["uvicorn", "--factory", "stockroom.inventory.api:create_app", "--host", "0.0.0.0", "--port", "8000"]
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    restart: unless-stopped
     environment:
-      STOCKROOM_DATABASE_URL: postgresql://stockroom:stockroom@postgres:5432/stockroom
+      RABBITMQ_DEFAULT_USER: stockroom
+      RABBITMQ_DEFAULT_PASS: stockroom
     ports:
-      - "8001:8000"
-    depends_on:
-      postgres:
-        condition: service_healthy
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq:/var/lib/rabbitmq
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_port_connectivity"]
       interval: 5s
-      timeout: 3s
-      retries: 10
+      timeout: 10s
+      retries: 20
+
+  inventory:
+    <<: *service
+    command: ["uvicorn", "--factory", "stockroom.inventory.api:create_app", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "8101:8000"
+
+  orders:
+    <<: *service
+    command: ["uvicorn", "--factory", "stockroom.orders.api:create_app", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "8102:8000"
 
   inventory-seed:
     build: .
     command: ["python", "-m", "stockroom.inventory.seed"]
-    environment:
-      STOCKROOM_DATABASE_URL: postgresql://stockroom:stockroom@postgres:5432/stockroom
+    environment: *service-env
     depends_on:
       inventory:
         condition: service_healthy
@@ -44,3 +74,4 @@ services:
 
 volumes:
   pgdata:
+  rabbitmq:
