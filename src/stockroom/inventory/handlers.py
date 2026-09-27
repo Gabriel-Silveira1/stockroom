@@ -1,4 +1,5 @@
 import logging
+from uuid import UUID
 
 from stockroom.inventory import repository, service
 from stockroom.inventory.domain import (
@@ -16,7 +17,7 @@ from stockroom.shared.outbox import enqueue
 
 SCHEMA = "inventory"
 QUEUE = "inventory"
-ROUTING_KEYS = ("order.placed", "order.cancelled")
+ROUTING_KEYS = ("order.placed", "order.cancelled", "fulfillment.picked", "fulfillment.shipped")
 
 log = logging.getLogger(__name__)
 
@@ -71,7 +72,30 @@ def build_handlers(*, ttl_seconds: int) -> dict[str, Handler]:
             return
         await _emit(conn, "stock.released", order_id, reservation_id=str(reservation.id))
 
-    return {"order.placed": on_order_placed, "order.cancelled": on_order_cancelled}
+    async def on_picked(conn: Connection, event: Event) -> None:
+        order_id = str(event.data["order_id"])
+        try:
+            await service.pin_in(conn, UUID(event.data["reservation_id"]))
+        except InvalidTransitionError as exc:
+            # Picked too late: the hold lapsed and its units may be promised elsewhere.
+            await _emit(conn, "stock.rejected", order_id, reason=f"reservation_{exc.current}")
+
+    async def on_shipped(conn: Connection, event: Event) -> None:
+        try:
+            await service.commit_in(conn, UUID(event.data["reservation_id"]))
+        except InvalidTransitionError as exc:
+            log.error(
+                "order %s shipped but its reservation is %s; the ledger needs a manual correction",
+                event.data["order_id"],
+                exc.current,
+            )
+
+    return {
+        "order.placed": on_order_placed,
+        "order.cancelled": on_order_cancelled,
+        "fulfillment.picked": on_picked,
+        "fulfillment.shipped": on_shipped,
+    }
 
 
 async def _emit(conn: Connection, event_type: str, order_id: str, **data: object) -> None:

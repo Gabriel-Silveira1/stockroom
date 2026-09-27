@@ -17,6 +17,7 @@ from stockroom.inventory.domain import (
     find_shortfalls,
     normalize_lines,
     should_commit,
+    should_pin,
     should_release,
 )
 from stockroom.shared.db import Connection, Pool
@@ -83,6 +84,17 @@ async def commit_in(conn: Connection, reservation_id: UUID) -> Reservation:
     if should_commit(reservation.status):
         await repository.record_shipment(conn, reservation_id)
         await repository.set_status(conn, reservation_id, ReservationStatus.COMMITTED)
+    return await _get_locked(conn, reservation_id)
+
+
+async def pin_in(conn: Connection, reservation_id: UUID) -> Reservation:
+    """Stop the hold from expiring once the goods are picked."""
+    reservation = await _get_locked(conn, reservation_id)
+    # Same reasoning as commit: judge expiry only while holding the stock rows.
+    await repository.lock_stock_items(conn, list(reservation.lines))
+    reservation = await _get_locked(conn, reservation_id)
+    if should_pin(reservation.status):
+        await repository.pin(conn, reservation_id)
     return await _get_locked(conn, reservation_id)
 
 

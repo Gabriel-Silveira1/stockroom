@@ -15,7 +15,7 @@ DATABASE_URL = os.environ.get(
     "postgresql://stockroom:stockroom@localhost:5433/stockroom_test",
 )
 
-SCHEMAS = ("inventory", "orders")
+SCHEMAS = ("inventory", "orders", "fulfillment")
 
 CORE_WEST = StockKey("CORE-001", "eu-west")
 EXP_WEST = StockKey("EXP-001", "eu-west")
@@ -60,7 +60,9 @@ async def catalog(pool: Pool) -> None:
             "inventory.stock_movements, inventory.stock_items, inventory.skus, "
             "inventory.warehouses, inventory.outbox, inventory.processed_messages, "
             "orders.idempotency_keys, orders.order_history, orders.order_lines, "
-            "orders.orders, orders.outbox, orders.processed_messages"
+            "orders.orders, orders.outbox, orders.processed_messages, "
+            "fulfillment.shipment_lines, fulfillment.shipments, fulfillment.outbox, "
+            "fulfillment.processed_messages"
         )
         await conn.execute("INSERT INTO inventory.warehouses VALUES ('eu-west', 'West')")
         await conn.execute(

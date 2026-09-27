@@ -1031,6 +1031,7 @@ source = { editable = "." }
 dependencies = [
     { name = "aio-pika" },
     { name = "fastapi" },
+    { name = "httpx" },
     { name = "psycopg", extra = ["binary", "pool"] },
     { name = "pydantic-settings" },
     { name = "uvicorn", extra = ["standard"] },
@@ -1038,7 +1039,6 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "httpx" },
     { name = "mypy" },
     { name = "pre-commit" },
     { name = "pre-commit-hooks" },
@@ -1051,6 +1051,7 @@ dev = [
 requires-dist = [
     { name = "aio-pika", specifier = ">=9.4" },
     { name = "fastapi", specifier = ">=0.115" },
+    { name = "httpx", specifier = ">=0.27" },
     { name = "psycopg", extras = ["binary", "pool"], specifier = ">=3.2" },
     { name = "pydantic-settings", specifier = ">=2.4" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.30" },
@@ -1058,7 +1059,6 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "httpx", specifier = ">=0.27" },
     { name = "mypy", specifier = ">=1.11" },
     { name = "pre-commit", specifier = ">=3.8" },
     { name = "pre-commit-hooks", specifier = ">=6.0.0" },

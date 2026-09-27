@@ -92,6 +92,7 @@ async def transition_in(
     cause: str,
     reason: str | None = None,
     reservation_id: UUID | None = None,
+    tracking_number: str | None = None,
 ) -> bool:
     """Move the order inside the caller's transaction. False when it was already there."""
     order = await repository.get_order(conn, order_id, lock=True)
@@ -105,6 +106,7 @@ async def transition_in(
         target,
         cancel_reason=reason if target is OrderStatus.CANCELLED else None,
         reservation_id=reservation_id,
+        tracking_number=tracking_number,
     )
     await repository.append_history(conn, order_id, target, cause, reason)
     return True

@@ -9,26 +9,51 @@ from stockroom.shared.db import Connection
 from stockroom.shared.events import Event
 from stockroom.shared.outbox import enqueue
 
-ROUTING_KEYS = ("stock.reserved", "stock.rejected")
+ROUTING_KEYS = (
+    "stock.reserved",
+    "stock.rejected",
+    "fulfillment.picked",
+    "fulfillment.shipped",
+    "fulfillment.failed",
+)
 
 log = logging.getLogger(__name__)
+
+
+async def _advance(
+    conn: Connection,
+    event: Event,
+    target: OrderStatus,
+    *,
+    reservation_id: UUID | None = None,
+    tracking_number: str | None = None,
+) -> bool:
+    """Apply the move an event implies. Late events for a cancelled order re-announce the
+    cancellation, because whoever sent them is now holding something for it."""
+    order_id = UUID(event.data["order_id"])
+    try:
+        return await service.transition_in(
+            conn,
+            order_id,
+            target,
+            cause=event.type,
+            reservation_id=reservation_id,
+            tracking_number=tracking_number,
+        )
+    except InvalidOrderTransitionError as exc:
+        if exc.current is OrderStatus.CANCELLED and target is not OrderStatus.SHIPPED:
+            await service.announce_cancellation(conn, order_id, "cancelled_while_in_progress")
+        elif exc.current is OrderStatus.CANCELLED:
+            log.error("order %s shipped after it was cancelled", order_id)
+        else:
+            log.info("ignoring late %s for order %s in %s", event.type, order_id, exc.current)
+        return False
 
 
 async def on_stock_reserved(conn: Connection, event: Event) -> None:
     order_id = UUID(event.data["order_id"])
     reservation_id = UUID(event.data["reservation_id"])
-    try:
-        applied = await service.transition_in(
-            conn, order_id, OrderStatus.RESERVED, cause=event.type, reservation_id=reservation_id
-        )
-    except InvalidOrderTransitionError as exc:
-        if exc.current is OrderStatus.CANCELLED:
-            # The order was cancelled while inventory was still reserving. Say so again:
-            # inventory now holds stock for it and must let go.
-            await service.announce_cancellation(conn, order_id, "cancelled_before_reservation")
-        else:
-            log.info("ignoring late %s for order %s in %s", event.type, order_id, exc.current)
-        return
+    applied = await _advance(conn, event, OrderStatus.RESERVED, reservation_id=reservation_id)
     if not applied:
         return
     order = await repository.get_order(conn, order_id)
@@ -50,7 +75,8 @@ async def on_stock_reserved(conn: Connection, event: Event) -> None:
     )
 
 
-async def on_stock_rejected(conn: Connection, event: Event) -> None:
+async def on_rejected(conn: Connection, event: Event) -> None:
+    """Inventory could not hold the stock, or the carrier gave up: cancel the order."""
     order_id = UUID(event.data["order_id"])
     try:
         await service.cancel_in(conn, order_id, cause=event.type, reason=event.data["reason"])
@@ -58,7 +84,18 @@ async def on_stock_rejected(conn: Connection, event: Event) -> None:
         log.info("ignoring %s for order %s in %s", event.type, order_id, exc.current)
 
 
+async def on_picked(conn: Connection, event: Event) -> None:
+    await _advance(conn, event, OrderStatus.PICKED)
+
+
+async def on_shipped(conn: Connection, event: Event) -> None:
+    await _advance(conn, event, OrderStatus.SHIPPED, tracking_number=event.data["tracking_number"])
+
+
 HANDLERS: dict[str, Handler] = {
     "stock.reserved": on_stock_reserved,
-    "stock.rejected": on_stock_rejected,
+    "stock.rejected": on_rejected,
+    "fulfillment.picked": on_picked,
+    "fulfillment.shipped": on_shipped,
+    "fulfillment.failed": on_rejected,
 }

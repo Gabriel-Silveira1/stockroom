@@ -47,6 +47,7 @@ class Order:
     status: OrderStatus
     cancel_reason: str | None
     reservation_id: UUID | None
+    tracking_number: str | None
     lines: tuple[OrderLine, ...]
     created_at: datetime
 

@@ -25,17 +25,26 @@ async def _stock(pool: Pool) -> tuple[int, int, int]:
     return level.on_hand, level.reserved, level.available
 
 
-async def test_placed_order_ends_up_reserved(pool: Pool) -> None:
+async def test_placed_order_is_reserved_then_picked(pool: Pool) -> None:
     await inventory.receive(pool, CORE_WEST, 5, "test")
     order_id = await _place(pool, "1001", 2)
 
     sent = await pump(pool)
 
     order, history = await orders.get(pool, order_id)
-    assert [e.type for e in sent] == ["order.placed", "stock.reserved", "order.reserved"]
-    assert order.status is OrderStatus.RESERVED
+    assert [e.type for e in sent] == [
+        "order.placed",
+        "stock.reserved",
+        "order.reserved",
+        "fulfillment.picked",
+    ]
+    assert order.status is OrderStatus.PICKED
     assert order.reservation_id is not None
-    assert [h.status for h in history] == [OrderStatus.PENDING, OrderStatus.RESERVED]
+    assert [h.status for h in history] == [
+        OrderStatus.PENDING,
+        OrderStatus.RESERVED,
+        OrderStatus.PICKED,
+    ]
     assert await _stock(pool) == (5, 2, 3)
 
 

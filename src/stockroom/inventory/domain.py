@@ -110,10 +110,11 @@ def find_shortfalls(
 
 
 def resolve_status(
-    stored: ReservationStatus, expires_at: datetime, now: datetime
+    stored: ReservationStatus, expires_at: datetime, now: datetime, *, pinned: bool = False
 ) -> ReservationStatus:
-    """Expiry is derived, never stored: an active reservation past its TTL is expired."""
-    if stored is ReservationStatus.ACTIVE and expires_at <= now:
+    """Expiry is derived, never stored: an active, unpinned reservation past its TTL is
+    expired."""
+    if stored is ReservationStatus.ACTIVE and not pinned and expires_at <= now:
         return ReservationStatus.EXPIRED
     return stored
 
@@ -134,3 +135,16 @@ def should_release(current: ReservationStatus) -> bool:
     if current in (ReservationStatus.RELEASED, ReservationStatus.EXPIRED):
         return False
     raise InvalidTransitionError(current, "release")
+
+
+def should_pin(current: ReservationStatus) -> bool:
+    """True when the hold must stop expiring because the goods are now in a box.
+
+    False when that no longer matters (already shipped). A hold that expired or was
+    released before picking cannot be pinned: its units may already belong to someone.
+    """
+    if current is ReservationStatus.ACTIVE:
+        return True
+    if current is ReservationStatus.COMMITTED:
+        return False
+    raise InvalidTransitionError(current, "pin")

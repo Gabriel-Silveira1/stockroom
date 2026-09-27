@@ -83,14 +83,14 @@ async def _load_reservation(
     conn: Connection, where: LiteralString, value: object, *, lock: bool
 ) -> Reservation | None:
     query: LiteralString = (
-        "SELECT id, order_id, status, expires_at, statement_timestamp() "
+        "SELECT id, order_id, status, expires_at, pinned, statement_timestamp() "
         "FROM inventory.reservations WHERE " + where + (" FOR UPDATE" if lock else "")
     )
     cursor = await conn.execute(query, (value,))
     row = await cursor.fetchone()
     if row is None:
         return None
-    reservation_id, order_id, status, expires_at, now = row
+    reservation_id, order_id, status, expires_at, pinned, now = row
     cursor = await conn.execute(
         """
         SELECT sku, warehouse_id, quantity FROM inventory.reservation_lines
@@ -102,7 +102,7 @@ async def _load_reservation(
     return Reservation(
         id=reservation_id,
         order_id=order_id,
-        status=resolve_status(ReservationStatus(status), expires_at, now),
+        status=resolve_status(ReservationStatus(status), expires_at, now, pinned=pinned),
         expires_at=expires_at,
         lines=lines,
     )
@@ -122,6 +122,13 @@ async def set_status(conn: Connection, reservation_id: UUID, status: Reservation
     await conn.execute(
         "UPDATE inventory.reservations SET status = %s, updated_at = now() WHERE id = %s",
         (status.value, reservation_id),
+    )
+
+
+async def pin(conn: Connection, reservation_id: UUID) -> None:
+    await conn.execute(
+        "UPDATE inventory.reservations SET pinned = true, updated_at = now() WHERE id = %s",
+        (reservation_id,),
     )
 
 

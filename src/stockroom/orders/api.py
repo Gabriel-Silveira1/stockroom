@@ -56,6 +56,7 @@ class OrderOut(BaseModel):
     status: str
     cancel_reason: str | None
     reservation_id: UUID | None
+    tracking_number: str | None
     lines: list[LineOut]
     created_at: datetime
     history: list[HistoryOut] | None = None
@@ -68,6 +69,7 @@ class OrderOut(BaseModel):
             status=order.status.value,
             cancel_reason=order.cancel_reason,
             reservation_id=order.reservation_id,
+            tracking_number=order.tracking_number,
             lines=[
                 LineOut(sku=ln.sku, warehouse_id=ln.warehouse_id, quantity=ln.quantity)
                 for ln in order.lines

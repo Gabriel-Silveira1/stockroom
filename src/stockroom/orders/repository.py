@@ -88,7 +88,7 @@ async def get_order_id_by_external(conn: Connection, external_id: str) -> UUID:
 async def get_order(conn: Connection, order_id: UUID, *, lock: bool = False) -> Order | None:
     cursor = await conn.execute(
         """
-        SELECT id, external_id, status, cancel_reason, reservation_id, created_at
+        SELECT id, external_id, status, cancel_reason, reservation_id, tracking_number, created_at
         FROM orders.orders WHERE id = %s
         """
         + (" FOR UPDATE" if lock else ""),
@@ -105,13 +105,14 @@ async def get_order(conn: Connection, order_id: UUID, *, lock: bool = False) -> 
         (order_id,),
     )
     lines = tuple(OrderLine(*line) for line in await cursor.fetchall())
-    id_, external_id, status, cancel_reason, reservation_id, created_at = row
+    id_, external_id, status, cancel_reason, reservation_id, tracking_number, created_at = row
     return Order(
         id=id_,
         external_id=external_id,
         status=OrderStatus(status),
         cancel_reason=cancel_reason,
         reservation_id=reservation_id,
+        tracking_number=tracking_number,
         lines=lines,
         created_at=created_at,
     )
@@ -137,6 +138,7 @@ async def update_status(
     *,
     cancel_reason: str | None = None,
     reservation_id: UUID | None = None,
+    tracking_number: str | None = None,
 ) -> None:
     await conn.execute(
         """
@@ -144,10 +146,11 @@ async def update_status(
         SET status = %s,
             cancel_reason = coalesce(%s, cancel_reason),
             reservation_id = coalesce(%s, reservation_id),
+            tracking_number = coalesce(%s, tracking_number),
             updated_at = now()
         WHERE id = %s
         """,
-        (status.value, cancel_reason, reservation_id, order_id),
+        (status.value, cancel_reason, reservation_id, tracking_number, order_id),
     )
 
 

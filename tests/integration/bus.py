@@ -9,6 +9,7 @@ from fnmatch import fnmatch
 
 from psycopg import sql
 
+from stockroom.fulfillment import handlers as fulfillment_handlers
 from stockroom.inventory import handlers as inventory_handlers
 from stockroom.orders import handlers as orders_handlers
 from stockroom.shared.consumer import Handler, process
@@ -23,6 +24,7 @@ SUBSCRIBERS: dict[str, tuple[tuple[str, ...], Mapping[str, Handler]]] = {
         inventory_handlers.build_handlers(ttl_seconds=TTL),
     ),
     "orders": (orders_handlers.ROUTING_KEYS, orders_handlers.HANDLERS),
+    "fulfillment": (fulfillment_handlers.ROUTING_KEYS, fulfillment_handlers.HANDLERS),
 }
 
 
