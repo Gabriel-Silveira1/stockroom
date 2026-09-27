@@ -34,8 +34,21 @@ jobs:
           --health-interval 2s
           --health-timeout 3s
           --health-retries 20
+      rabbitmq:
+        image: rabbitmq:4-alpine
+        env:
+          RABBITMQ_DEFAULT_USER: stockroom
+          RABBITMQ_DEFAULT_PASS: stockroom
+        ports:
+          - 5672:5672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q check_port_connectivity"
+          --health-interval 5s
+          --health-timeout 10s
+          --health-retries 20
     env:
       STOCKROOM_TEST_DATABASE_URL: postgresql://stockroom:stockroom@localhost:5432/stockroom_test
+      STOCKROOM_TEST_RABBITMQ_URL: amqp://stockroom:stockroom@localhost:5672/
     steps:
       - uses: actions/checkout@v5
       - uses: astral-sh/setup-uv@v6
