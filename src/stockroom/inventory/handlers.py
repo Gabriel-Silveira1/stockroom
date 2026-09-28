@@ -16,7 +16,6 @@ from stockroom.shared.events import Event, EventData
 from stockroom.shared.outbox import enqueue
 
 SCHEMA = "inventory"
-QUEUE = "inventory"
 ROUTING_KEYS = ("order.placed", "order.cancelled", "fulfillment.picked", "fulfillment.shipped")
 
 log = logging.getLogger(__name__)
