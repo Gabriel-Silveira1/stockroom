@@ -12,7 +12,7 @@ from stockroom.inventory.domain import ReservationStatus
 from stockroom.orders import service as orders
 from stockroom.orders.domain import OrderLine, OrderStatus
 from stockroom.shared.db import Pool
-from tests.integration.bus import pump
+from tests.integration.bus import deliver, drain, pump
 from tests.integration.conftest import CORE_WEST
 
 MAX_ATTEMPTS = 3
@@ -157,3 +157,51 @@ async def test_picked_order_keeps_its_stock_after_the_ttl(pool: Pool) -> None:
     assert order.status is OrderStatus.PICKED
     assert reservation.status is ReservationStatus.ACTIVE
     assert await _stock(pool) == (5, 2, 3)
+
+
+async def test_order_cancelled_before_fulfillment_saw_it_is_never_shipped(pool: Pool) -> None:
+    await inventory.receive(pool, CORE_WEST, 5, "test")
+    result = await orders.place_order(
+        pool,
+        idempotency_key="k-1",
+        payload={"id": "1"},
+        external_id="1",
+        lines=[OrderLine("CORE-001", "eu-west", 2)],
+    )
+    order_id = result.order.id
+    for schema in ("orders", "inventory"):
+        for event in await drain(pool, schema):
+            await deliver(pool, event)
+    held_back = await drain(pool, "orders")
+
+    await orders.cancel(pool, order_id)
+    await pump(pool)
+    for event in held_back:
+        await deliver(pool, event)
+    # Dispatch before anything else is delivered: this is the window the tombstone closes.
+    carrier = FakeCarrier()
+    await _dispatch_all(_dispatcher(pool, carrier))
+    await pump(pool)
+
+    shipment = await fulfillment.get(pool, order_id)
+    assert [e.type for e in held_back] == ["order.reserved"]
+    assert shipment is not None
+    assert shipment.status is ShipmentStatus.CANCELLED
+    assert carrier.calls == []
+    assert await _stock(pool) == (5, 0, 5)
+
+
+async def test_order_rejected_for_stock_leaves_nothing_in_fulfillment(pool: Pool) -> None:
+    await inventory.receive(pool, CORE_WEST, 1, "test")
+    result = await orders.place_order(
+        pool,
+        idempotency_key="k-1",
+        payload={"id": "1"},
+        external_id="1",
+        lines=[OrderLine("CORE-001", "eu-west", 2)],
+    )
+
+    await pump(pool)
+
+    assert (await orders.get(pool, result.order.id))[0].status is OrderStatus.CANCELLED
+    assert await fulfillment.get(pool, result.order.id) is None

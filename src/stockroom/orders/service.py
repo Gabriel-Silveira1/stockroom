@@ -116,13 +116,27 @@ async def cancel_in(conn: Connection, order_id: UUID, *, cause: str, reason: str
     """Cancel and announce it, so inventory releases whatever it holds for the order."""
     if not await transition_in(conn, order_id, OrderStatus.CANCELLED, cause=cause, reason=reason):
         return False
-    await announce_cancellation(conn, order_id, reason)
+    order = await _get(conn, order_id)
+    await announce_cancellation(conn, order_id, reason, order.reservation_id)
     return True
 
 
-async def announce_cancellation(conn: Connection, order_id: UUID, reason: str) -> None:
+async def announce_cancellation(
+    conn: Connection, order_id: UUID, reason: str, reservation_id: UUID | None
+) -> None:
+    """`reservation_id` is null when the order never got stock, so nothing downstream can
+    be holding or shipping anything for it."""
     await enqueue(
-        conn, SCHEMA, Event("order.cancelled", {"order_id": str(order_id), "reason": reason})
+        conn,
+        SCHEMA,
+        Event(
+            "order.cancelled",
+            {
+                "order_id": str(order_id),
+                "reason": reason,
+                "reservation_id": str(reservation_id) if reservation_id else None,
+            },
+        ),
     )
 
 

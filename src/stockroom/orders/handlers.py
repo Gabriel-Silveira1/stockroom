@@ -42,7 +42,13 @@ async def _advance(
         )
     except InvalidOrderTransitionError as exc:
         if exc.current is OrderStatus.CANCELLED and target is not OrderStatus.SHIPPED:
-            await service.announce_cancellation(conn, order_id, "cancelled_while_in_progress")
+            late_reservation = event.data.get("reservation_id")
+            await service.announce_cancellation(
+                conn,
+                order_id,
+                "cancelled_while_in_progress",
+                UUID(late_reservation) if late_reservation else None,
+            )
         elif exc.current is OrderStatus.CANCELLED:
             log.error("order %s shipped after it was cancelled", order_id)
         else:

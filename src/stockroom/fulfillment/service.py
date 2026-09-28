@@ -41,13 +41,18 @@ async def start_shipment_in(
     return True
 
 
-async def cancel_in(conn: Connection, order_id: UUID) -> bool:
-    """Stop a shipment that has not left. Before it exists, leave a tombstone so a late
-    `order.reserved` cannot start one."""
+async def cancel_in(conn: Connection, order_id: UUID, *, was_reserved: bool) -> bool:
+    """Stop a shipment that has not left.
+
+    If a reserved order is cancelled before its shipment exists, `order.reserved` may still
+    be on its way: leave a tombstone so it cannot start one. An order that never had stock
+    never gets `order.reserved`, so it needs no tombstone.
+    """
     shipment = await repository.get_by_order(conn, order_id, lock=True)
     if shipment is None:
-        await repository.insert_tombstone(conn, uuid4(), order_id)
-        return True
+        if was_reserved:
+            await repository.insert_tombstone(conn, uuid4(), order_id)
+        return was_reserved
     if not can_cancel(shipment.status):
         return False
     await repository.mark_final(conn, shipment.id, ShipmentStatus.CANCELLED, None)

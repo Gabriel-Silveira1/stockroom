@@ -20,7 +20,11 @@ async def on_order_reserved(conn: Connection, event: Event) -> None:
 
 
 async def on_order_cancelled(conn: Connection, event: Event) -> None:
-    await service.cancel_in(conn, UUID(event.data["order_id"]))
+    await service.cancel_in(
+        conn,
+        UUID(event.data["order_id"]),
+        was_reserved=event.data.get("reservation_id") is not None,
+    )
 
 
 HANDLERS: dict[str, Handler] = {
