@@ -1,0 +1,36 @@
+# Production overrides: only the gateway is reachable, on 80/443 with automatic HTTPS.
+#   docker compose -f compose.yaml -f compose.prod.yaml up -d --build
+# Settings come from .env (see .env.example and docs/deploy.md).
+services:
+  postgres:
+    ports: !reset []
+  rabbitmq:
+    ports: !reset []
+  inventory:
+    ports: !reset []
+  orders:
+    ports: !reset []
+  fulfillment:
+    ports: !reset []
+  carrier:
+    ports: !reset []
+
+  gateway:
+    ports: !override
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:?set SITE_ADDRESS to the public domain}
+      DEMO_USER: ${DEMO_USER:?set DEMO_USER}
+      DEMO_PASSWORD_HASH: ${DEMO_PASSWORD_HASH:?set DEMO_PASSWORD_HASH (caddy hash-password)}
+    volumes: !override
+      - ./gateway/Caddyfile.prod:/etc/caddy/Caddyfile:ro
+      - ./gateway/routes.caddy:/etc/caddy/routes.caddy:ro
+      - ./dashboard:/srv/dashboard:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  caddy-data:
+  caddy-config:
