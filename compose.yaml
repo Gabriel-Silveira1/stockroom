@@ -53,19 +53,19 @@ services:
 
   inventory:
     <<: *service
-    command: ["uvicorn", "--factory", "stockroom.inventory.api:create_app", "--host", "0.0.0.0", "--port", "8000"]
+    command: ["uvicorn", "--factory", "stockroom.inventory.api:create_app", "--host", "0.0.0.0", "--port", "8000", "--root-path", "/api/inventory"]
     ports:
       - "8101:8000"
 
   orders:
     <<: *service
-    command: ["uvicorn", "--factory", "stockroom.orders.api:create_app", "--host", "0.0.0.0", "--port", "8000"]
+    command: ["uvicorn", "--factory", "stockroom.orders.api:create_app", "--host", "0.0.0.0", "--port", "8000", "--root-path", "/api/orders"]
     ports:
       - "8102:8000"
 
   fulfillment:
     <<: *service
-    command: ["uvicorn", "--factory", "stockroom.fulfillment.api:create_app", "--host", "0.0.0.0", "--port", "8000"]
+    command: ["uvicorn", "--factory", "stockroom.fulfillment.api:create_app", "--host", "0.0.0.0", "--port", "8000", "--root-path", "/api/fulfillment"]
     environment:
       <<: *service-env
       STOCKROOM_CARRIER_URL: http://carrier:8000
@@ -83,7 +83,7 @@ services:
   carrier:
     build: .
     restart: unless-stopped
-    command: ["uvicorn", "--factory", "stockroom.carrier.api:create_app", "--host", "0.0.0.0", "--port", "8000"]
+    command: ["uvicorn", "--factory", "stockroom.carrier.api:create_app", "--host", "0.0.0.0", "--port", "8000", "--root-path", "/api/carrier"]
     environment:
       STOCKROOM_CARRIER_FAILURE_RATE: "0.3"
     ports:
@@ -93,6 +93,22 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  # Single entry point: the dashboard at / and every API under /api/<service>.
+  gateway:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "8100:80"
+    volumes:
+      - ./gateway/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./gateway/routes.caddy:/etc/caddy/routes.caddy:ro
+      - ./dashboard:/srv/dashboard:ro
+    depends_on:
+      - inventory
+      - orders
+      - fulfillment
+      - carrier
 
   inventory-seed:
     build: .

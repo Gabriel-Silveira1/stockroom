@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Stockroom</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">▣</span>
+      <div>
+        <h1>Stockroom</h1>
+        <p class="subtitle">Inventory and fulfillment for a fictional game store</p>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <span id="live" class="live" title="Refreshes every 1.5 s">live</span>
+      <nav class="docs" aria-label="API docs">
+        API docs:
+        <a href="/api/inventory/docs">inventory</a>
+        <a href="/api/orders/docs">orders</a>
+        <a href="/api/fulfillment/docs">fulfillment</a>
+        <a href="/api/carrier/docs">carrier</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="grid">
+    <section class="panel" aria-labelledby="stock-title">
+      <div class="panel-head">
+        <h2 id="stock-title">Stock by warehouse</h2>
+        <span class="hint">on hand = reserved + available</span>
+      </div>
+      <div id="stock"></div>
+    </section>
+
+    <section class="panel" aria-labelledby="orders-title">
+      <div class="panel-head">
+        <h2 id="orders-title">Recent orders</h2>
+        <div id="order-counts" class="counts"></div>
+      </div>
+      <ol id="orders" class="orders"></ol>
+    </section>
+
+    <section class="panel" aria-labelledby="detail-title">
+      <div class="panel-head">
+        <h2 id="detail-title">Order timeline</h2>
+      </div>
+      <div id="detail" class="detail">
+        <p class="empty">Select an order to follow it through reservation, picking and shipping.</p>
+      </div>
+    </section>
+
+    <section class="panel simulate" aria-labelledby="simulate-title">
+      <div class="panel-head">
+        <h2 id="simulate-title">Simulate</h2>
+        <span id="sim-status" class="hint" role="status"></span>
+      </div>
+      <div class="sim-grid">
+        <form id="order-form" class="sim-card">
+          <h3>Place an order</h3>
+          <p class="hint">Sent as a storefront webhook with a fresh Idempotency-Key.</p>
+          <label>Item <select id="order-sku" required></select></label>
+          <label>Quantity <input id="order-qty" type="number" min="1" value="1" required></label>
+          <div class="row">
+            <button type="submit">Place order</button>
+            <button type="button" id="replay" class="secondary" disabled
+                    title="Send the last webhook again with the same key">Replay last webhook ×3</button>
+          </div>
+        </form>
+
+        <div class="sim-card">
+          <h3>Burst</h3>
+          <p class="hint">Many concurrent orders for one unit each. Only as many as there are units succeed.</p>
+          <label>Item <select id="burst-sku"></select></label>
+          <label>Orders <input id="burst-count" type="number" min="1" max="500" value="200"></label>
+          <button type="button" id="burst">Send burst</button>
+        </div>
+
+        <form id="carrier-form" class="sim-card">
+          <h3>Carrier</h3>
+          <p class="hint">The mock carrier fails on purpose. Failed bookings are retried with backoff; after the last attempt the order is cancelled and its stock released.</p>
+          <label>Failure rate <output id="rate-out">30%</output>
+            <input id="rate" type="range" min="0" max="100" step="5" value="30">
+          </label>
+          <button type="submit">Apply</button>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <template id="order-item">
+    <li>
+      <button type="button" class="order">
+        <span class="pill"></span>
+        <span class="order-ref"></span>
+        <span class="order-lines"></span>
+        <time class="order-time"></time>
+      </button>
+    </li>
+  </template>
+
+  <script src="app.js"></script>
+</body>
+</html>

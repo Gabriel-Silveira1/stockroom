@@ -1,0 +1,20 @@
+# Shared by the local and production Caddyfiles: one origin for the dashboard and the
+# four APIs, so the browser never needs CORS and production exposes a single port.
+encode gzip
+
+handle_path /api/inventory/* {
+	reverse_proxy inventory:8000
+}
+handle_path /api/orders/* {
+	reverse_proxy orders:8000
+}
+handle_path /api/fulfillment/* {
+	reverse_proxy fulfillment:8000
+}
+handle_path /api/carrier/* {
+	reverse_proxy carrier:8000
+}
+handle {
+	root * /srv/dashboard
+	file_server
+}
