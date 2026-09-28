@@ -3,12 +3,16 @@
 Event-driven inventory and fulfillment for a fictional online game store: base games,
 expansion packs and accessories, stocked in more than one warehouse.
 
+**Live: <https://stockroom-task.duckdns.org>.** Browsing the dashboard and the APIs is
+open. Placing orders or changing the carrier asks for a password, sent with the
+submission.
+
 The problem it solves is **not selling what is not there**, even with concurrent
 orders, duplicated webhooks and services failing mid-flow. What it guarantees, and
 where each guarantee is proven:
 
 | Guarantee | Proof |
-|---|---|
+| --- | --- |
 | 200 concurrent orders for 50 units: exactly 50 get stock, availability never goes below zero | `tests/integration/test_reservation_concurrency.py`, `scripts/load_test.py` |
 | The same webhook delivered 3 times creates one order | `tests/integration/test_order_webhook.py` |
 | A service stopped mid-flow loses and duplicates nothing when it comes back | `tests/integration/test_messaging_e2e.py`, demo 4 below |
@@ -29,7 +33,7 @@ flowchart LR
 ```
 
 | Service | Owns |
-|---|---|
+| --- | --- |
 | `inventory` | Stock as an append-only ledger, reservations with TTL |
 | `orders` | Idempotent order webhook, order state machine and history |
 | `fulfillment` | Picking, carrier dispatch with retries, compensation |
