@@ -43,7 +43,7 @@ max-args = 7
 [tool.mypy]
 strict = true
 plugins = ["pydantic.mypy"]
-files = ["src", "tests"]
+files = ["src", "tests", "scripts"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
