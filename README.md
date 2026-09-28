@@ -25,7 +25,9 @@ Requires Docker.
 docker compose up -d --build
 curl localhost:8101/stock
 
-curl -X POST localhost:8102/webhooks/orders   -H 'Idempotency-Key: demo-1' -H 'Content-Type: application/json'   -d '{"id": 1001, "line_items": [{"sku": "CORE-001", "quantity": 2}]}'
+curl -X POST localhost:8102/webhooks/orders \
+  -H 'Idempotency-Key: demo-1' -H 'Content-Type: application/json' \
+  -d '{"id": 1001, "line_items": [{"sku": "CORE-001", "quantity": 2}]}'
 ```
 
 Follow the order with `curl localhost:8102/orders/<id>`: it moves through `reserved`,
@@ -33,7 +35,8 @@ Follow the order with `curl localhost:8102/orders/<id>`: it moves through `reser
 watch retries end in a cancelled order and released stock:
 
 ```sh
-curl -X PUT localhost:8104/admin/behaviour   -H 'Content-Type: application/json' -d '{"failure_rate": 1, "latency_ms": 50}'
+curl -X PUT localhost:8104/admin/behaviour \
+  -H 'Content-Type: application/json' -d '{"failure_rate": 1, "latency_ms": 50}'
 ```
 
 Each service serves its API docs at `/docs`. Postgres is exposed on port `5433`.
