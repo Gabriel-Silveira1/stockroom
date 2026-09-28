@@ -62,6 +62,7 @@ class ReceiptIn(Line):
 
 class StockLevelOut(BaseModel):
     sku: str
+    name: str
     warehouse_id: str
     on_hand: int
     reserved: int
@@ -114,6 +115,7 @@ def _register_routes(app: FastAPI) -> None:
         return [
             StockLevelOut(
                 sku=level.key.sku,
+                name=level.name,
                 warehouse_id=level.key.warehouse_id,
                 on_hand=level.on_hand,
                 reserved=level.reserved,

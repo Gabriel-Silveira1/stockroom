@@ -33,6 +33,7 @@ class StockLevel:
     on_hand: int
     reserved: int
     available: int
+    name: str = ""
 
 
 @dataclass(frozen=True, slots=True)

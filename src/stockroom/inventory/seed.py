@@ -13,6 +13,7 @@ SKUS = [
     ("EXP-001", "Expansion Pack I: Coastlines"),
     ("EXP-002", "Expansion Pack II: Highlands"),
     ("SLV-100", "Card Sleeves (100)"),
+    ("LTD-001", "Limited Collector's Edition"),
 ]
 
 OPENING_STOCK = {
@@ -22,6 +23,8 @@ OPENING_STOCK = {
     ("EXP-002", "eu-west"): 25,
     ("EXP-002", "eu-central"): 10,
     ("SLV-100", "eu-west"): 200,
+    # Exactly 50 units for the 200-concurrent-orders demo (scripts/load_test.py).
+    ("LTD-001", "eu-west"): 50,
 }
 
 SEED_REFERENCE = "opening-stock"

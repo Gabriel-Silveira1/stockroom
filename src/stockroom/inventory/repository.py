@@ -165,14 +165,15 @@ async def record_receipt(
 async def list_stock_levels(conn: Connection, warehouse_id: str | None) -> list[StockLevel]:
     cursor = await conn.execute(
         """
-        SELECT sku, warehouse_id, on_hand, reserved, available
-        FROM inventory.stock_levels
-        WHERE %(warehouse_id)s::text IS NULL OR warehouse_id = %(warehouse_id)s
-        ORDER BY warehouse_id, sku
+        SELECT sl.sku, sl.warehouse_id, sl.on_hand, sl.reserved, sl.available, s.name
+        FROM inventory.stock_levels sl
+        JOIN inventory.skus s USING (sku)
+        WHERE %(warehouse_id)s::text IS NULL OR sl.warehouse_id = %(warehouse_id)s
+        ORDER BY sl.warehouse_id, sl.sku
         """,
         {"warehouse_id": warehouse_id},
     )
     return [
-        StockLevel(StockKey(sku, wh), on_hand, reserved, available)
-        for sku, wh, on_hand, reserved, available in await cursor.fetchall()
+        StockLevel(StockKey(sku, wh), on_hand, reserved, available, name)
+        for sku, wh, on_hand, reserved, available, name in await cursor.fetchall()
     ]
