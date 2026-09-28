@@ -15,7 +15,8 @@ repos:
         types: [text]
       - id: check-yaml
         name: check yaml
-        entry: uv run check-yaml
+        # --unsafe: syntax only, so Compose tags such as !reset are accepted.
+        entry: uv run check-yaml --unsafe
         language: system
         types: [yaml]
       - id: check-toml
