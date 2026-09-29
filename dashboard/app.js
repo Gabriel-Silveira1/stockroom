@@ -129,9 +129,16 @@ function select(orderId) {
 async function refreshDetail() {
   if (!state.selected) return;
   const [order, shipment] = await Promise.all([
-    api("GET", `${API.orders}/orders/${state.selected}`),
+    api("GET", `${API.orders}/orders/${state.selected}`).catch(() => null),
     api("GET", `${API.fulfillment}/shipments/${state.selected}`).catch(() => ({ status: 404 })),
   ]);
+  if (!order) {
+    // A linked order that no longer exists (for example after a data reset).
+    state.selected = null;
+    history.replaceState(null, "", location.pathname);
+    $("detail").replaceChildren(el("p", { className: "empty", textContent: "Select an order to follow it through reservation, picking and shipping." }));
+    return;
+  }
   renderDetail(order.payload, shipment.status === 200 ? shipment.payload : null);
 }
 
