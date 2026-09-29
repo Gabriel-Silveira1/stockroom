@@ -50,6 +50,8 @@ services:
       interval: 5s
       timeout: 10s
       retries: 20
+      # First boot on an empty volume is slow on a small server.
+      start_period: 90s
 
   inventory:
     <<: *service
